@@ -525,6 +525,43 @@ describe('Compress Middleware', () => {
       })
       expect(res.headers.get('Content-Encoding')).toBe('gzip')
     })
+
+    it('should not inherit Content-Encoding when middleware throws after compress', async () => {
+      const app = new Hono()
+      app.onError((_err, c) => c.json({ error: 'failed' }, 500))
+      app.use(async (_c, next) => {
+        await next()
+        throw new Error('failed after the route responded')
+      })
+      app.use(compress())
+      app.get('/', (c) => c.text('x'.repeat(4096)))
+
+      const res = await app.request('/', { headers: { 'Accept-Encoding': 'gzip' } })
+      expect(res.status).toBe(500)
+      expect(res.headers.get('Content-Encoding')).toBeNull()
+      expect(await res.json()).toEqual({ error: 'failed' })
+    })
+
+    it('should not inherit Content-Encoding with default error handler when middleware throws after compress', async () => {
+      const app = new Hono()
+      const origError = console.error
+      console.error = () => {}
+      try {
+        app.use(async (_c, next) => {
+          await next()
+          throw new Error('failed after the route responded')
+        })
+        app.use(compress())
+        app.get('/', (c) => c.text('x'.repeat(4096)))
+
+        const res = await app.request('/', { headers: { 'Accept-Encoding': 'gzip' } })
+        expect(res.status).toBe(500)
+        expect(res.headers.get('Content-Encoding')).toBeNull()
+        expect(await res.text()).toBe('Internal Server Error')
+      } finally {
+        console.error = origError
+      }
+    })
   })
 })
 

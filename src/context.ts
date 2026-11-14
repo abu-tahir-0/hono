@@ -415,7 +415,7 @@ export class Context<
     if (this.#res && _res) {
       _res = createResponseInstance(_res.body, _res)
       for (const [k, v] of this.#res.headers.entries()) {
-        if (k === 'content-type') {
+        if (k === 'content-type' || k === 'content-encoding') {
           continue
         }
         if (k === 'set-cookie') {
@@ -612,6 +612,9 @@ export class Context<
     headers?: HeaderRecord
   ): Response {
     let responseHeaders = this.#res ? new Headers(this.#res.headers) : this.#preparedHeaders
+    if (this.#res) {
+      responseHeaders?.delete('content-encoding')
+    }
 
     if (typeof arg === 'object' && arg.headers) {
       responseHeaders ??= new Headers()
